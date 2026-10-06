@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("SQLITE_DATABASE_URL")
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  openId                String?                @unique
+  email                 String?
+  name                  String
+  role                  String                 @default("TEACHER")
+  image                 String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  createdActivities     Activity[]             @relation("ActivityCreator")
+  cippEvaluations       CippEvaluation[]
+  satisfactionResponses SatisfactionResponse[]
+  updatedReports        ActivityReport[]
+
+  @@index([role])
+  @@index([email])
+}
+
+model AcademicYear {
+  id         String     @id @default(cuid())
+  year       Int        @unique
+  isCurrent  Boolean    @default(false)
+  semesters  Semester[]
+  activities Activity[]
+  createdAt  DateTime   @default(now())
+}
+
+model Semester {
+  id             String       @id @default(cuid())
+  label          String
+  termNumber     Int
+  startsAt       DateTime
+  endsAt         DateTime
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  activities     Activity[]
+
+  @@unique([academicYearId, termNumber])
+}
+
+model Activity {
+  id                    String                 @id @default(cuid())
+  code                  String                 @unique
+  title                 String
+  description           String                 @default("")
+  startsAt              DateTime
+  endsAt                DateTime?
+  location              String                 @default("")
+  ownerName             String
+  visibility            String                 @default("PUBLIC")
+  status                String                 @default("OPEN")
+  participantCount      Int                    @default(0)
+  academicYearId        String
+  semesterId            String
+  createdById           String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  academicYear          AcademicYear           @relation(fields: [academicYearId], references: [id])
+  semester              Semester               @relation(fields: [semesterId], references: [id])
+  createdBy             User?                  @relation("ActivityCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  cippEvaluations       CippEvaluation[]
+  satisfactionResponses SatisfactionResponse[]
+  report                ActivityReport?
+  images                ActivityImage[]
+
+  @@index([startsAt])
+  @@index([visibility, status])
+  @@index([academicYearId, semesterId])
+}
+
+model CippQuestion {
+  id        String       @id @default(cuid())
+  dimension String
+  question  String
+  sortOrder Int
+  isActive  Boolean      @default(true)
+  answers   CippAnswer[]
+
+  @@index([dimension, sortOrder])
+}
+
+model CippEvaluation {
+  id             String       @id @default(cuid())
+  activityId     String
+  userId         String?
+  respondentName String       @default("ผู้ประเมิน")
+  submittedAt    DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  activity       Activity     @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  answers        CippAnswer[]
+
+  @@index([activityId, submittedAt])
+  @@index([userId])
+}
+
+model CippAnswer {
+  id           String         @id @default(cuid())
+  evaluationId String
+  questionId   String
+  score        Int
+  evaluation   CippEvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  question     CippQuestion   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([evaluationId, questionId])
+  @@index([questionId])
+}
+
+model SatisfactionQuestion {
+  id        String               @id @default(cuid())
+  question  String
+  sortOrder Int
+  isActive  Boolean              @default(true)
+  answers   SatisfactionAnswer[]
+}
+
+model SatisfactionResponse {
+  id             String               @id @default(cuid())
+  activityId     String
+  userId         String?
+  respondentName String               @default("ผู้ตอบแบบประเมิน")
+  suggestion     String               @default("")
+  submittedAt    DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  activity       Activity             @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user           User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  answers        SatisfactionAnswer[]
+
+  @@index([activityId, submittedAt])
+  @@index([userId])
+}
+
+model SatisfactionAnswer {
+  id         String               @id @default(cuid())
+  responseId String
+  questionId String
+  score      Int
+  response   SatisfactionResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question   SatisfactionQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([responseId, questionId])
+  @@index([questionId])
+}
+
+model ActivityReport {
+  id                String              @id @default(cuid())
+  activityId        String              @unique
+  participantCount  Int                 @default(0)
+  passRate          Float               @default(0)
+  satisfactionLevel Float               @default(0)
+  budgetApproved    Float               @default(0)
+  budgetSpent       Float               @default(0)
+  strengths         String              @default("")
+  challenges        String              @default("")
+  recommendations   String              @default("")
+  updatedById       String?
+  updatedAt         DateTime            @updatedAt
+  createdAt         DateTime            @default(now())
+  activity          Activity            @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  updatedBy         User?               @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+  signatures        ApprovalSignature[]
+  images            ActivityImage[]
+}
+
+model ApprovalSignature {
+  id            String         @id @default(cuid())
+  reportId      String
+  role          String
+  fullName      String         @default("")
+  signaturePath String         @default("")
+  signedAt      DateTime?
+  decision      String         @default("PENDING")
+  report        ActivityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, role])
+}
+
+model ActivityImage {
+  id           String          @id @default(cuid())
+  activityId   String
+  reportId     String?
+  path         String
+  caption      String          @default("")
+  displayOrder Int             @default(0)
+  createdAt    DateTime        @default(now())
+  activity     Activity        @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  report       ActivityReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([activityId, displayOrder])
+}
