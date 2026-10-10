@@ -70,6 +70,13 @@ pnpm db:studio   # เปิด Prisma Studio
 
 SQLite ที่จัดเก็บเป็นไฟล์เหมาะกับการติดตั้ง/ทดลองบนเครื่องเดียว ข้อมูลในระบบไฟล์ของ container หรือ instance ที่ถูกแทนที่อาจไม่คงทน และไม่เหมาะกับการเขียนพร้อมกันจากหลาย instance โปรเจกต์นี้ตั้ง Prisma provider เป็น SQLite ตามคำยืนยันของผู้ใช้ และ **ยังไม่ควรนำขึ้น production ที่ต้องคงข้อมูลถาวร** จนกว่าจะย้าย schema/migrations ไปฐานข้อมูลที่โฮสต์รองรับ เช่น MySQL ที่เตรียมไว้ใน WebDev และทดสอบการย้ายข้อมูล/สำรองข้อมูลก่อน
 
+### WebDev container deployment
+
+- `Dockerfile` ใช้ pnpm 11.25.0 และ lockfile ของโปรเจกต์, เตรียม schema/ข้อมูลตัวอย่างสำหรับ demo build, และรัน Next.js production server โดยฟัง `0.0.0.0` บน `PORT` (ค่าเริ่มต้น 3000)
+- Health check ใช้ `GET /api/health` ซึ่งไม่ต้องล็อกอินและไม่เชื่อมฐานข้อมูล
+- SQLite ใน published container เป็นข้อมูลตัวอย่างสำหรับ demo เท่านั้น; container filesystem เป็นแบบชั่วคราวและไม่ซิงก์กับ SQLite ใน Preview/เครื่องพัฒนา ห้ามบันทึกข้อมูลโครงการจริงจนกว่าจะย้ายไปฐานข้อมูลแบบ durable
+- OAuth ใน production ต้องมี `NEXTAUTH_URL` ตรงกับ HTTPS origin ที่เผยแพร่จริง; runtime environment ที่ตรวจพบยังไม่มีค่านี้
+
 ## โครงสร้างหลัก
 
 - `app/` — หน้าภาษาไทยและ Next.js Route Handlers สำหรับ API
